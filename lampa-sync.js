@@ -1,14 +1,16 @@
 (function () {
-    'use strict';
+    'use me strict';
 
+    // === НАЛАШТУВАННЯ ===
     const CONFIG = {
-        binId: '6af0938affd5d16053b138cc',
-        apiKey: '$2a$10$L7Ww9WWb6xBYSaGrL2rNTe60Ohmz4IsI2605J1PznHYY1KZ8lrEJS'
+        binId: '6af0938affd5d16053b138cc',     // Вставте сюди ваш BIN ID
+        apiKey: '$2a$10$tPDvcNxXaQBCTxl.myb40OZc13gfYmRl.a2NxailYCKVyOLrU2yii'    // Вставте сюди ваш API Key
     };
 
     if (window.lampa_sync_plugin) return;
     window.lampa_sync_plugin = true;
 
+    // Отримання таймкодів з хмари
     function fetchCloudTimecodes(callback) {
         $.ajax({
             url: `https://api.jsonbin.io/v3/b/${CONFIG.binId}/latest`,
@@ -20,11 +22,12 @@
                 callback(data.record || {});
             },
             error: function (err) {
-                console.log('Lampa Sync Error (Get):', err);
+                console.log('Lampa Sync Error:', err);
             }
         });
     }
 
+    // Збереження таймкодів у хмару
     function saveCloudTimecodes(data) {
         $.ajax({
             url: `https://api.jsonbin.io/v3/b/${CONFIG.binId}`,
@@ -35,53 +38,40 @@
             },
             data: JSON.stringify(data),
             success: function () {
-                console.log('Lampa Sync: Saved successfully to cloud!');
-            },
-            error: function (err) {
-                console.log('Lampa Sync Error (Save):', err);
+                console.log('Lampa Sync: Timecodes updated successfully');
             }
         });
     }
 
+    // Підключення до подій плеєра Lampa
     Lampa.Listener.follow('player', function (e) {
-        if (!e.target) return;
-
-        // Коли плеєр завантажився — намагаємося відновити таймкод
         if (e.type === 'ready') {
-            const card = e.target.card || (Lampa.Player.data && Lampa.Player.data.movie);
-            const id = card ? (card.id || card.kinopoisk_id || card.imdb_id) : null;
+            // При відкритті плеєра підтягуємо таймкод
+            const id = e.target.card ? e.target.card.id : null;
             if (!id) return;
 
             fetchCloudTimecodes(function (cloudData) {
                 if (cloudData[id] && cloudData[id].time) {
-                    const savedTime = cloudData[id].time;
-                    if (e.target.video && savedTime > 5) {
-                        e.target.video.currentTime = savedTime;
-                        Lampa.Noty.show('Таймкод відновлено: ' + Math.floor(savedTime) + ' сек');
+                    const localTime = Lampa.Storage.get('time_' + id, 0);
+                    // Якщо в хмарі збережено новіший таймкод ніж локально
+                    if (cloudData[id].time > localTime) {
+                        Lampa.Storage.set('time_' + id, cloudData[id].time);
+                        e.target.video.currentTime = cloudData[id].time;
+                        Lampa.Noty.show('Таймкод відновлено з хмари');
                     }
                 }
             });
         }
 
-        // Коли змінюється час або закривається плеєр — зберігаємо
         if (e.type === 'destroy' || e.type === 'timeupdate') {
-            const card = e.target.card || (Lampa.Player.data && Lampa.Player.data.movie);
-            const id = card ? (card.id || card.kinopoisk_id || card.imdb_id) : null;
-            
-            if (!id || !e.target.video) return;
-            const currentTime = Math.floor(e.target.video.currentTime);
+            // Зберігаємо таймкод при згортанні/паузі
+            const id = e.target.card ? e.target.card.id : null;
+            const currentTime = Math.floor(e.target.video ? e.target.video.currentTime : 0);
 
-            // Зберігаємо тільки якщо пройшло більше 10 секунд
-            if (currentTime > 10) {
-                // Робимо невелику затримку для timeupdate, щоб не спамити запитами
-                if (e.type === 'timeupdate') {
-                    if (currentTime % 15 !== 0) return; // Зберігаємо кожні 15 секунд перегляду
-                }
-
+            if (id && currentTime > 10) {
                 fetchCloudTimecodes(function (cloudData) {
                     cloudData[id] = {
                         time: currentTime,
-                        title: card.title || card.name || 'Unknown',
                         updated: Date.now()
                     };
                     saveCloudTimecodes(cloudData);
