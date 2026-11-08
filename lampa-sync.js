@@ -3,8 +3,8 @@
 
     // === НАЛАШТУВАННЯ ===
     const CONFIG = {
-        binId: '6af05759ac6210605a771d47',     // Вставте сюди ваш BIN ID
-        apiKey: '$2a$10$L7Ww9WWb6xBYSaGrL2rNTe60Ohmz4IsI2605J1PznHYY1KZ8lrEJS'    // Вставте сюди ваш API Key
+        binId: '6af05759ac6210605a771d47',
+        apiKey: '$2a$10$L7Ww9WWb6xBYSaGrL2rNTe60Ohmz4IsI2605J1PznHYY1KZ8lrEJS'
     };
 
     if (window.lampa_sync_plugin) return;
@@ -46,14 +46,12 @@
     // Підключення до подій плеєра Lampa
     Lampa.Listener.follow('player', function (e) {
         if (e.type === 'ready') {
-            // При відкритті плеєра підтягуємо таймкод
             const id = e.target.card ? e.target.card.id : null;
             if (!id) return;
 
             fetchCloudTimecodes(function (cloudData) {
                 if (cloudData[id] && cloudData[id].time) {
                     const localTime = Lampa.Storage.get('time_' + id, 0);
-                    // Якщо в хмарі збережено новіший таймкод ніж локально
                     if (cloudData[id].time > localTime) {
                         Lampa.Storage.set('time_' + id, cloudData[id].time);
                         e.target.video.currentTime = cloudData[id].time;
@@ -64,7 +62,6 @@
         }
 
         if (e.type === 'destroy' || e.type === 'timeupdate') {
-            // Зберігаємо таймкод при згортанні/паузі
             const id = e.target.card ? e.target.card.id : null;
             const currentTime = Math.floor(e.target.video ? e.target.video.currentTime : 0);
 
