@@ -2,7 +2,7 @@
     'use strict';
 
     const CONFIG = {
-        binId: '6af05759ac6210605a771d47',
+        binId: '6af0938affd5d16053b138cc',
         apiKey: '$2a$10$L7Ww9WWb6xBYSaGrL2rNTe60Ohmz4IsI2605J1PznHYY1KZ8lrEJS'
     };
 
