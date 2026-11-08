@@ -1,16 +1,14 @@
 (function () {
-    'use me strict';
+    'use strict';
 
-    // === НАЛАШТУВАННЯ ===
     const CONFIG = {
-        binId: '6af0938affd5d16053b138cc',     // Вставте сюди ваш BIN ID
-        apiKey: '$2a$10$tPDvcNxXaQBCTxl.myb40OZc13gfYmRl.a2NxailYCKVyOLrU2yii'    // Вставте сюди ваш API Key
+        binId: '6af0938affd5d16053b136cc',
+        apiKey: '$2a$10$tPDvcNxaQBCtXl.myb400Zc13gfYmRl.a2NxailyCKVyOLRu2yii'
     };
 
     if (window.lampa_sync_plugin) return;
     window.lampa_sync_plugin = true;
 
-    // Отримання таймкодів з хмари
     function fetchCloudTimecodes(callback) {
         $.ajax({
             url: `https://api.jsonbin.io/v3/b/${CONFIG.binId}/latest`,
@@ -27,7 +25,6 @@
         });
     }
 
-    // Збереження таймкодів у хмару
     function saveCloudTimecodes(data) {
         $.ajax({
             url: `https://api.jsonbin.io/v3/b/${CONFIG.binId}`,
@@ -43,20 +40,24 @@
         });
     }
 
-    // Підключення до подій плеєра Lampa
     Lampa.Listener.follow('player', function (e) {
+        if (!e.target) return;
+
         if (e.type === 'ready') {
-            // При відкритті плеєра підтягуємо таймкод
-            const id = e.target.card ? e.target.card.id : null;
+            let id = null;
+            if (e.target.card && e.target.card.id) {
+                id = e.target.card.id;
+            }
             if (!id) return;
 
             fetchCloudTimecodes(function (cloudData) {
                 if (cloudData[id] && cloudData[id].time) {
                     const localTime = Lampa.Storage.get('time_' + id, 0);
-                    // Якщо в хмарі збережено новіший таймкод ніж локально
                     if (cloudData[id].time > localTime) {
                         Lampa.Storage.set('time_' + id, cloudData[id].time);
-                        e.target.video.currentTime = cloudData[id].time;
+                        if (e.target.video) {
+                            e.target.video.currentTime = cloudData[id].time;
+                        }
                         Lampa.Noty.show('Таймкод відновлено з хмари');
                     }
                 }
@@ -64,9 +65,15 @@
         }
 
         if (e.type === 'destroy' || e.type === 'timeupdate') {
-            // Зберігаємо таймкод при згортанні/паузі
-            const id = e.target.card ? e.target.card.id : null;
-            const currentTime = Math.floor(e.target.video ? e.target.video.currentTime : 0);
+            let id = null;
+            if (e.target.card && e.target.card.id) {
+                id = e.target.card.id;
+            }
+
+            let currentTime = 0;
+            if (e.target.video && e.target.video.currentTime) {
+                currentTime = Math.floor(e.target.video.currentTime);
+            }
 
             if (id && currentTime > 10) {
                 fetchCloudTimecodes(function (cloudData) {
